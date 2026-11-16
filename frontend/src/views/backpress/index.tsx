@@ -73,7 +73,7 @@ export default function BackpressView() {
     try {
       const response = await request(`${ENDPOINT}/${row.id}/actions`, {
         method: 'POST',
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ values: { action } }),
       })
       if (!response.ok) {
         throw new Error('反压监控面板动作未生效，请稍后重试')
@@ -81,6 +81,23 @@ export default function BackpressView() {
       await reload()
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '反压监控面板操作失败')
+    }
+  }
+
+  async function runSample(row: Row) {
+    setErrorMessage('')
+    try {
+      const response = await request('/api/bpsample/sample', {
+        method: 'POST',
+        body: JSON.stringify({ values: { 指标编号: row['指标编号'] } }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.message || '反压采样未生效，请稍后重试')
+      }
+      await reload()
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '反压采样操作失败')
     }
   }
 
@@ -142,6 +159,9 @@ export default function BackpressView() {
                     {action}
                   </button>
                 ))}
+                <button className="link" type="button" onClick={() => void runSample(row)}>
+                  反压采样
+                </button>
               </td>
             </tr>
           ))}

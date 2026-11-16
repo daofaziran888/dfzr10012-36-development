@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services.bpsample import bpsample_service
 from app.store import store
 
 MODULE = "backpress"
@@ -39,7 +40,8 @@ class BackpressService:
             return None, missing
         rows = store.rows(MODULE)
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
-        entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
+        # 阻塞算子、缓冲区水位、消费延迟、采样时间是采样核对的依据，登记时必须一并保留。
+        entry.update({key: value for key, value in values.items() if key != "action"})
         entry["status"] = STATUS_ORDER[0]
         entry["pending"] = True
         entry["abnormal"] = False
@@ -58,4 +60,6 @@ class BackpressService:
         entry["status"] = target
         entry["pending"] = target != STATUS_ORDER[-1]
         entry["abnormal"] = action in NEGATIVE_ACTIONS
-        return entry, f"反压指标已{action}"
+        # 数据联动：状态流转后立即重采样，恢复时采样结果与告警待办在同一次请求里一起更新。
+        _, sample_message = bpsample_service.sample_metric(entry)
+        return entry, f"反压指标已{action}；{sample_message}"

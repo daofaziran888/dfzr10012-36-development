@@ -39,7 +39,8 @@ class AlarmService:
             return None, missing
         rows = store.rows(MODULE)
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
-        entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
+        # 告警级别、通知渠道等字段是反压采样校验严重级别的依据，登记时必须一并保留。
+        entry.update({key: value for key, value in values.items() if key != "action"})
         entry["status"] = STATUS_ORDER[0]
         entry["pending"] = True
         entry["abnormal"] = False
